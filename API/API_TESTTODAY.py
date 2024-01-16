@@ -125,10 +125,15 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
     query_meter_model = "SELECT meter_model FROM a_equip_meter WHERE assetno = :meter_asset_no"
     cursor = conn.cursor()
     cursor.execute(query_meter_model, meter_asset_no=meter_asset_no)
-    meter_model = cursor.fetchone()[0]
+    meter_model = cursor.fetchone()
+
+    if meter_model is None:
+        return jsonify(error='No công tơ không hợp lệ.'), 404
+
+    meter_model1 = meter_model[0]
 
     # Xây dựng truy vấn dựa trên meter_model và khoảng thời gian
-    if meter_model == "HHM11-V1":
+    if meter_model1 == "HHM11-V1":
         query = '''
                      SElECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
             z.dn_huucong_nhan, z.dn_huucong_nhan_bieu1, z.dn_huucong_nhan_bieu2, z.dn_huucong_nhan_bieu3, z.dn_vocong_giao, z.dn_vocong_giao_bieu1, z.dn_vocong_giao_bieu2, z.dn_vocong_giao_bieu3,
@@ -158,7 +163,7 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
         AND TRUNC(z.tv) >= TO_DATE(:start_date, 'yyyy-mm-dd')
     AND TRUNC(z.tv) <= TO_DATE(:end_date, 'yyyy-mm-dd')
         '''
-    elif meter_model == "HHM31/38":
+    elif meter_model1 == "HHM31/38":
         query = '''
                         SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, 
                             z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
@@ -194,7 +199,7 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
                         AND TRUNC(z.tv) >= TO_DATE(:start_date, 'yyyy-mm-dd')
                     AND TRUNC(z.tv) <= TO_DATE(:end_date, 'yyyy-mm-dd')
         '''
-    elif meter_model == "HHM31":
+    elif meter_model1 == "HHM31":
         query = '''
                         SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, 
                             z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
@@ -230,7 +235,7 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
                         AND TRUNC(z.tv) >= TO_DATE(:start_date, 'yyyy-mm-dd')
                     AND TRUNC(z.tv) <= TO_DATE(:end_date, 'yyyy-mm-dd')
         '''
-    elif meter_model == "HHM38":
+    elif meter_model1 == "HHM38":
         query = '''
                         SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, 
                             z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
@@ -266,6 +271,8 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
                         AND TRUNC(z.tv) >= TO_DATE(:start_date, 'yyyy-mm-dd')
                     AND TRUNC(z.tv) <= TO_DATE(:end_date, 'yyyy-mm-dd')
         '''
+    elif meter_model1 == "":
+        return "Loại công tơ không hợp lệ."
     else:
         return "Loại công tơ không hợp lệ."
 
@@ -339,99 +346,78 @@ def get_data():
         query_meter_model = "SELECT meter_model FROM a_equip_meter WHERE assetno = :meter_asset_no"
         cursor = conn.cursor()
         cursor.execute(query_meter_model, meter_asset_no=meter_asset_no)
-        meter_model = cursor.fetchone()[0]
+        meter_model = cursor.fetchone()
+
+        if meter_model is None:
+            return jsonify(error='No công tơ không hợp lệ.'), 404
+
+        meter_model1 = meter_model[0]
 
     # Truy vấn dữ liệu dựa trên loại công tơ
-    if meter_model == "HHM11-V1":
+    if meter_model1 == "HHM11-V1":
                 query = '''
-            SElECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
-            z.dn_huucong_nhan, z.dn_huucong_nhan_bieu1, z.dn_huucong_nhan_bieu2, z.dn_huucong_nhan_bieu3, z.dn_vocong_giao, z.dn_vocong_giao_bieu1, z.dn_vocong_giao_bieu2, z.dn_vocong_giao_bieu3,
-            z.dn_vocong_nhan, z.dn_vocong_nhan_bieu1, z.dn_vocong_nhan_bieu2, z.dn_vocong_nhan_bieu3
-            FROM
-            (SELECT DISTINCT  e.Data_ID, e.Ma_DIEMDO, e.tenkhachhang, e.METER_ASSET_NO nocongto, e.TV thoigiandoc,
-            e.dn_huucong_giao, e.dn_huucong_giao_bieu1, e.dn_huucong_giao_bieu2, e.dn_huucong_giao_bieu3,
-            e.dn_huucong_nhan, e.dn_huucong_nhan_bieu1, e.dn_huucong_nhan_bieu2, e.dn_huucong_nhan_bieu3,
-            g.RA dn_vocong_giao, g.RA_T1 dn_vocong_giao_bieu1, g.RA_T2 dn_vocong_giao_bieu2, g.RA_T3 dn_vocong_giao_bieu3,
-            g.RR dn_vocong_nhan, g.RR_T1 dn_vocong_nhan_bieu1, g.RR_T2 dn_vocong_nhan_bieu2, g.RR_T3 dn_vocong_nhan_bieu3
-            FROM
-            (SELECT DISTINCT d.Data_ID, CONS_NO Ma_DIEMDO, CONS_NAME tenkhachhang, METER_ASSET_NO, TV,
-            FA dn_huucong_giao, FA_T1 dn_huucong_giao_bieu1, FA_T2 dn_huucong_giao_bieu2, FA_T3 dn_huucong_giao_bieu3,
-            FR dn_huucong_nhan, FR_T1 dn_huucong_nhan_bieu1, FR_T2 dn_huucong_nhan_bieu2, FR_T3 dn_huucong_nhan_bieu3
-            FROM A_Data_catalogue d
-            LEFT JOIN BIZ_PUB_DATA_F_ENERGY_D c ON d.Data_ID = c.Data_ID WHERE d.METER_ASSET_NO = :meter_asset_no AND c.RECEIVE_TIME LIKE :thoi_gian) e
-            LEFT JOIN BIZ_PUB_DATA_R_ENERGY_D g ON e.Data_ID = g.Data_ID)z
-            LEFT join BIZ_PUB_DATA_OTHER_D y
-            ON z.Data_ID = y.Data_ID and y.MR_TIME_FA LIKE :thoi_gian
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
+B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
+B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
+ C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
+ C.RR DN_VOCONG_NHAN,C.RR_T1 DN_VOCONG_NHAN_BIEU1,C.RR_T2 DN_VOCONG_NHAN_BIEU2,C.RR_T2 DN_VOCONG_NHAN_BIEU3  
+ from (select DATA_ID,CONS_NO,CONS_NAME,METER_ASSET_NO  
+from A_DATA_CATALOGUE where METER_ASSET_NO= :meter_asset_no) A inner join  
+BIZ_PUB_DATA_F_ENERGY_D B on A.DATA_ID=B.DATA_ID and trunc(B.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_R_ENERGY_D C on C.DATA_ID=A.DATA_ID and trunc(C.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(:thoi_gian,'yyyy-mm-dd')
+            
         '''
-    elif meter_model == "HHM31/38":
+    elif meter_model1 == "HHM31/38":
         query = '''
-            SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
-            z.dn_huucong_nhan, z.dn_huucong_nhan_bieu1, z.dn_huucong_nhan_bieu2, z.dn_huucong_nhan_bieu3, z.dn_vocong_giao, z.dn_vocong_giao_bieu1, z.dn_vocong_giao_bieu2, z.dn_vocong_giao_bieu3,
-            z.dn_vocong_nhan, z.dn_vocong_nhan_bieu1, z.dn_vocong_nhan_bieu2, z.dn_vocong_nhan_bieu3
-            FROM
-            (SElECT DISTINCT  e.Data_ID, e.Ma_DIEMDO, e.tenkhachhang, e.METER_ASSET_NO nocongto,e.TV thoigiandoc, e.dn_huucong_giao, e.dn_huucong_giao_bieu1, e.dn_huucong_giao_bieu2, e.dn_huucong_giao_bieu3,
-            e.dn_huucong_nhan, e.dn_huucong_nhan_bieu1, e.dn_huucong_nhan_bieu2, e.dn_huucong_nhan_bieu3, g.RA dn_vocong_giao, g.RA_T1 dn_vocong_giao_bieu1, g.RA_T2 dn_vocong_giao_bieu2, g.RA_T3 dn_vocong_giao_bieu3,
-            g.RR dn_vocong_nhan, g.RR_T1 dn_vocong_nhan_bieu1, g.RR_T2 dn_vocong_nhan_bieu2, g.RR_T3 dn_vocong_nhan_bieu3
-            FROM
-            (SELECT  DISTINCT d.Data_ID, CONS_NO Ma_DIEMDO, CONS_NAME tenkhachhang, METER_ASSET_NO, c.TV, FA dn_huucong_giao,FA_T1 dn_huucong_giao_bieu1,
-            FA_T2 dn_huucong_giao_bieu2, FA_T3 dn_huucong_giao_bieu3, FR dn_huucong_nhan,FR_T1 dn_huucong_nhan_bieu1, FR_T2 dn_huucong_nhan_bieu2, FR_T3 dn_huucong_nhan_bieu3
-            FROM A_Data_catalogue d
-            LEFT JOIN BIZ_PUB_DATA_F_ENERGY_D c 
-            ON d.Data_ID = c.Data_ID where d.METER_ASSET_NO = :meter_asset_no and c.RECEIVE_TIME LIKE :thoi_gian)e
-            LEFT join BIZ_PUB_DATA_R_ENERGY_D g
-            ON e.Data_ID = g.Data_ID where e.METER_ASSET_NO = :meter_asset_no and g.tv LIKE :thoi_gian)z
-            LEFT join BIZ_PUB_DATA_OTHER_D y
-            ON z.Data_ID = y.Data_ID and y.MR_TIME_FA LIKE :thoi_gian
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
+B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
+B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
+ C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
+ C.RR DN_VOCONG_NHAN,C.RR_T1 DN_VOCONG_NHAN_BIEU1,C.RR_T2 DN_VOCONG_NHAN_BIEU2,C.RR_T2 DN_VOCONG_NHAN_BIEU3  
+ from (select DATA_ID,CONS_NO,CONS_NAME,METER_ASSET_NO  
+from A_DATA_CATALOGUE where METER_ASSET_NO= :meter_asset_no) A inner join  
+BIZ_PUB_DATA_F_ENERGY_D B on A.DATA_ID=B.DATA_ID and trunc(B.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_R_ENERGY_D C on C.DATA_ID=A.DATA_ID and trunc(C.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(:thoi_gian,'yyyy-mm-dd')
         '''
-    elif meter_model == "HHM31":
+    elif meter_model1 == "HHM31":
         query = '''
-            SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
-            z.dn_huucong_nhan, z.dn_huucong_nhan_bieu1, z.dn_huucong_nhan_bieu2, z.dn_huucong_nhan_bieu3, z.dn_vocong_giao, z.dn_vocong_giao_bieu1, z.dn_vocong_giao_bieu2, z.dn_vocong_giao_bieu3,
-            z.dn_vocong_nhan, z.dn_vocong_nhan_bieu1, z.dn_vocong_nhan_bieu2, z.dn_vocong_nhan_bieu3
-            FROM
-            (SElECT DISTINCT  e.Data_ID, e.Ma_DIEMDO, e.tenkhachhang, e.METER_ASSET_NO nocongto,e.TV thoigiandoc, e.dn_huucong_giao, e.dn_huucong_giao_bieu1, e.dn_huucong_giao_bieu2, e.dn_huucong_giao_bieu3,
-            e.dn_huucong_nhan, e.dn_huucong_nhan_bieu1, e.dn_huucong_nhan_bieu2, e.dn_huucong_nhan_bieu3, g.RA dn_vocong_giao, g.RA_T1 dn_vocong_giao_bieu1, g.RA_T2 dn_vocong_giao_bieu2, g.RA_T3 dn_vocong_giao_bieu3,
-            g.RR dn_vocong_nhan, g.RR_T1 dn_vocong_nhan_bieu1, g.RR_T2 dn_vocong_nhan_bieu2, g.RR_T3 dn_vocong_nhan_bieu3
-            FROM
-            (SELECT  DISTINCT d.Data_ID, CONS_NO Ma_DIEMDO, CONS_NAME tenkhachhang, METER_ASSET_NO, c.TV, FA dn_huucong_giao,FA_T1 dn_huucong_giao_bieu1,
-            FA_T2 dn_huucong_giao_bieu2, FA_T3 dn_huucong_giao_bieu3, FR dn_huucong_nhan,FR_T1 dn_huucong_nhan_bieu1, FR_T2 dn_huucong_nhan_bieu2, FR_T3 dn_huucong_nhan_bieu3
-            FROM A_Data_catalogue d
-            LEFT JOIN BIZ_PUB_DATA_F_ENERGY_D c 
-            ON d.Data_ID = c.Data_ID where d.METER_ASSET_NO = :meter_asset_no and c.RECEIVE_TIME LIKE :thoi_gian)e
-            LEFT join BIZ_PUB_DATA_R_ENERGY_D g
-            ON e.Data_ID = g.Data_ID where e.METER_ASSET_NO = :meter_asset_no and g.tv LIKE :thoi_gian)z
-            LEFT join BIZ_PUB_DATA_OTHER_D y
-            ON z.Data_ID = y.Data_ID and y.MR_TIME_FA LIKE :thoi_gian
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
+B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
+B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
+ C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
+ C.RR DN_VOCONG_NHAN,C.RR_T1 DN_VOCONG_NHAN_BIEU1,C.RR_T2 DN_VOCONG_NHAN_BIEU2,C.RR_T2 DN_VOCONG_NHAN_BIEU3  
+ from (select DATA_ID,CONS_NO,CONS_NAME,METER_ASSET_NO  
+from A_DATA_CATALOGUE where METER_ASSET_NO= :meter_asset_no) A inner join  
+BIZ_PUB_DATA_F_ENERGY_D B on A.DATA_ID=B.DATA_ID and trunc(B.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_R_ENERGY_D C on C.DATA_ID=A.DATA_ID and trunc(C.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(:thoi_gian,'yyyy-mm-dd')
         '''
-    elif meter_model == "HHM38":
+    elif meter_model1 == "HHM38":
         query = '''
-            SELECT DISTINCT z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
-            z.dn_huucong_nhan, z.dn_huucong_nhan_bieu1, z.dn_huucong_nhan_bieu2, z.dn_huucong_nhan_bieu3, z.dn_vocong_giao, z.dn_vocong_giao_bieu1, z.dn_vocong_giao_bieu2, z.dn_vocong_giao_bieu3,
-            z.dn_vocong_nhan, z.dn_vocong_nhan_bieu1, z.dn_vocong_nhan_bieu2, z.dn_vocong_nhan_bieu3
-            FROM
-            (SElECT DISTINCT  e.Data_ID, e.Ma_DIEMDO, e.tenkhachhang, e.METER_ASSET_NO nocongto,e.TV thoigiandoc, e.dn_huucong_giao, e.dn_huucong_giao_bieu1, e.dn_huucong_giao_bieu2, e.dn_huucong_giao_bieu3,
-            e.dn_huucong_nhan, e.dn_huucong_nhan_bieu1, e.dn_huucong_nhan_bieu2, e.dn_huucong_nhan_bieu3, g.RA dn_vocong_giao, g.RA_T1 dn_vocong_giao_bieu1, g.RA_T2 dn_vocong_giao_bieu2, g.RA_T3 dn_vocong_giao_bieu3,
-            g.RR dn_vocong_nhan, g.RR_T1 dn_vocong_nhan_bieu1, g.RR_T2 dn_vocong_nhan_bieu2, g.RR_T3 dn_vocong_nhan_bieu3
-            FROM
-            (SELECT  DISTINCT d.Data_ID, CONS_NO Ma_DIEMDO, CONS_NAME tenkhachhang, METER_ASSET_NO, c.TV, FA dn_huucong_giao,FA_T1 dn_huucong_giao_bieu1,
-            FA_T2 dn_huucong_giao_bieu2, FA_T3 dn_huucong_giao_bieu3, FR dn_huucong_nhan,FR_T1 dn_huucong_nhan_bieu1, FR_T2 dn_huucong_nhan_bieu2, FR_T3 dn_huucong_nhan_bieu3
-            FROM A_Data_catalogue d
-            LEFT JOIN BIZ_PUB_DATA_F_ENERGY_D c 
-            ON d.Data_ID = c.Data_ID where d.METER_ASSET_NO = :meter_asset_no and c.RECEIVE_TIME LIKE :thoi_gian)e
-            LEFT join BIZ_PUB_DATA_R_ENERGY_D g
-            ON e.Data_ID = g.Data_ID where e.METER_ASSET_NO = :meter_asset_no and g.tv LIKE :thoi_gian)z
-            LEFT join BIZ_PUB_DATA_OTHER_D y
-            ON z.Data_ID = y.Data_ID and y.MR_TIME_FA LIKE :thoi_gian
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
+B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
+B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
+ C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
+ C.RR DN_VOCONG_NHAN,C.RR_T1 DN_VOCONG_NHAN_BIEU1,C.RR_T2 DN_VOCONG_NHAN_BIEU2,C.RR_T2 DN_VOCONG_NHAN_BIEU3  
+ from (select DATA_ID,CONS_NO,CONS_NAME,METER_ASSET_NO  
+from A_DATA_CATALOGUE where METER_ASSET_NO= :meter_asset_no) A inner join  
+BIZ_PUB_DATA_F_ENERGY_D B on A.DATA_ID=B.DATA_ID and trunc(B.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_R_ENERGY_D C on C.DATA_ID=A.DATA_ID and trunc(C.TV)=to_date(:thoi_gian,'yyyy-mm-dd')  
+left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(:thoi_gian,'yyyy-mm-dd')
         '''
+    
     else:
+        print(meter_model)
         return jsonify(error='Loại công tơ không hợp lệ.')
 
     if thoi_gian:
         try:
+            thoi_gian = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%Y-%m-%d')
+            # print(thoi_gian)
             # thoi_gian = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%d-%b-%y').upper()
-            thoi_gian = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%d-%b-%y').upper()
-            # query += " AND TO_CHAR(RECEIVE_TIME, 'DD-MON-YY') LIKE :thoi_gian"
-            thoi_gian = '%' + thoi_gian + '%'
+            # thoi_gian = '%' + thoi_gian + '%'
         except ValueError:
             return jsonify(error='Định dạng thời gian không hợp lệ')
 
@@ -456,21 +442,31 @@ def get_data():
             return obj.strftime('%Y-%m-%d %H:%M:%S')
         raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
-    json_string = json.dumps(result, default=json_encoder, ensure_ascii=False)  # Chuyển đối tượng Python thành chuỗi JSON
-    
-    
+    json_string = json.dumps(result, default=json_encoder, ensure_ascii=False)
+
     # Tìm và giải mã giá trị sau chuỗi "TENKHACHHANG"
     match = re.search(r'"TENKHACHHANG":"(.*?)"', json_string)
     if match:
         decoded_value = match.group(1).encode('latin-1').decode('utf-8')
-
         # Thay thế giá trị trong chuỗi JSON
-        modified_json_string = re.sub(r'"TENKHACHHANG":".*?"', f'"TENKHACHHANG":"{decoded_value}"', json_string)
+        json_string = re.sub(r'"TENKHACHHANG":".*?"', f'"TENKHACHHANG":"{decoded_value}"', json_string)
 
-        json_string = json.loads(modified_json_string)
-        return modified_json_string
+    return jsonify(json.loads(json_string))
 
-    return json_string
+@app.route('/shutdown', methods=['POST'])
+def shutdown_api():
+    global is_api_active
+    is_api_active = False
+    print("API has been shut down")  # Thêm dòng này để kiểm tra có vào đúng endpoint không
+    return 'API has been shut down'
+
+def check_api_status(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_api_active:
+            return jsonify({'error': 'API is currently shut down'}), 503
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # Endpoint bảo mật yêu cầu token hợp lệ
@@ -485,5 +481,7 @@ def unprotected():
     return jsonify(message='Truy cập thành công vào endpoint không yêu cầu xác thực token!')
 
 
+
 if __name__ == '__main__':
-    app.run(host='192.168.30.252', port=5050)
+    # app.run(port=1009)
+    app.run(host="192.168.30.252",port=5050)

@@ -1,0 +1,4 @@
+face_recognition
+cvzone
+firebase_admin
+numpy

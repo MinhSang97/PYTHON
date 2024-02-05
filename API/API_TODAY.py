@@ -1,3 +1,5 @@
+import signal
+import threading
 import cx_Oracle
 from flask import Flask, jsonify, request
 import hashlib
@@ -7,10 +9,9 @@ from functools import wraps
 import json
 import re
 import time
-import logging
 import os
-import signal
-import sys
+import os
+import json
 
 
 app = Flask(__name__)
@@ -316,14 +317,6 @@ def get_data_by_date_range(meter_asset_no, start_date, end_date):
 
     return json_string
 
-def check_api_status(f):
-    @wraps(f) 
-    def decorated_function(*args, **kwargs):
-        if not is_api_active:
-            return jsonify({'error': 'API is currently shut down'}), 503
-        return f(*args, **kwargs)
-    return decorated_function
-
 
 # Định nghĩa một endpoint để lấy dữ liệu từ bảng trong cơ sở dữ liệu Oracle dựa trên số công tơ và thời gian
 @app.route('/data', methods=['GET'])
@@ -332,6 +325,24 @@ def get_data():
     meter_asset_no = request.args.get('cong_to')
     thoi_gian = request.args.get('thoi_gian')
     token = request.headers.get('Authorization')
+
+    thoi_gian_cache = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%Y-%m-%d')
+
+    # Kiểm tra có dữ liệu trong tệp data_cache.json không
+    try:
+        with open('data_cache.json', 'r', encoding='utf-8') as file:
+            cache_data = json.load(file)
+
+        # Tìm dữ liệu trong cache_data có khớp với meter_asset_no và thoi_gian
+        for cache_entry in cache_data:
+            if cache_entry["meter_asset_no"] == meter_asset_no and cache_entry["thoi_gian"] == thoi_gian_cache:
+ 
+                # In ra màn hình thông báo
+                print("Dữ liệu được lấy từ tệp data_cache.json.")
+                return jsonify(json.loads(cache_entry["data"]))
+
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        pass  # Nếu không có hoặc xảy ra lỗi, tiếp tục truy vấn trong DB
 
     # Lấy địa chỉ IP
     ip_address = request.remote_addr
@@ -355,6 +366,8 @@ def get_data():
         # Lưu log
         save_log(token, meter_asset_no, thoi_gian, ip_address)
 
+
+
         # Truy vấn loại công tơ
         query_meter_model = "SELECT meter_model FROM a_equip_meter WHERE assetno = :meter_asset_no"
         cursor = conn.cursor()
@@ -366,10 +379,11 @@ def get_data():
 
         meter_model1 = meter_model[0]
 
+
     # Truy vấn dữ liệu dựa trên loại công tơ
     if meter_model1 == "HHM11-V1":
                 query = '''
-select A.CONS_NO MA_DDO, A.CONS_NAME TEN_KHANG,A.METER_ASSET_NO METER_ID,D.MR_TIME_FA THOIGIANDOC,  
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
 B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
 B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
  C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
@@ -383,7 +397,7 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
         '''
     elif meter_model1 == "HHM31/38":
         query = '''
-select A.CONS_NO MA_DDO, A.CONS_NAME TEN_KHANG,A.METER_ASSET_NO METER_ID,D.MR_TIME_FA THOIGIANDOC,  
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
 B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
 B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
  C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
@@ -396,7 +410,7 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
         '''
     elif meter_model1 == "HHM31":
         query = '''
-select A.CONS_NO MA_DDO, A.CONS_NAME TEN_KHANG,A.METER_ASSET_NO METER_ID,D.MR_TIME_FA THOIGIANDOC,  
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
 B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
 B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
  C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
@@ -409,8 +423,7 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
         '''
     elif meter_model1 == "HHM38":
         query = '''
-SELECT  z.Ma_DIEMDO, z.tenkhachhang, z.nocongto, y.MR_TIME_FA thoigiandoc, z.dn_huucong_giao, z.dn_huucong_giao_bieu1, z.dn_huucong_giao_bieu2, z.dn_huucong_giao_bieu3,
-select A.CONS_NO MA_DDO, A.CONS_NAME TEN_KHANG,A.METER_ASSET_NO METER_ID,D.MR_TIME_FA THOIGIANDOC,  
+select A.CONS_NO MA_DIEMDO, A.CONS_NAME TENKHACHHANG,A.METER_ASSET_NO NOCONGTO,D.MR_TIME_FA THOIGIANDOC,  
 B.FA DN_HUUCONG_GIAO,B.FA_T1 DN_HUUCONG_GIAO_BIEU1,B.FA_T2 DN_HUUCONG_GIAO_BIEU2,B.FA_T3 DN_HUUCONG_GIAO_BIEU3, 
 B.FR DN_VOCONG_GIAO,B.FR_T1 DN_VOCONG_GIAO_BIEU1,B.FR_T2 DN_VOCONG_GIAO_BIEU2,B.FR_T2 DN_VOCONG_GIAO_BIEU3,  
  C.RA DN_HUUCONG_NHAN,C.RA_T1 DN_HUUCONG_NHAN_BIEU1,C.RA_T2 DN_HUUCONG_NHAN_BIEU2,C.RA_T3 DN_HUUCONG_NHAN_BIEU3, 
@@ -429,7 +442,7 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
     if thoi_gian:
         try:
             thoi_gian = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%Y-%m-%d')
-            print(thoi_gian)
+            # print(thoi_gian)
             # thoi_gian = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%d-%b-%y').upper()
             # thoi_gian = '%' + thoi_gian + '%'
         except ValueError:
@@ -465,7 +478,31 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
         # Thay thế giá trị trong chuỗi JSON
         json_string = re.sub(r'"TENKHACHHANG":".*?"', f'"TENKHACHHANG":"{decoded_value}"', json_string)
 
+       # Đọc dữ liệu hiện tại từ tệp nếu có
+    try:
+        with open('data_cache.json', 'r', encoding='utf-8') as file:
+            existing_data = json.load(file)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        existing_data = []
+
+    # Thêm dữ liệu mới vào danh sách hiện tại
+    existing_data.append({
+        "meter_asset_no": meter_asset_no,
+        "thoi_gian": thoi_gian,
+        "data": json_string,
+        "ip": ip_address
+    })
+
+    # Lưu toàn bộ danh sách vào tệp data_cache.json
+    with open('data_cache.json', 'w', encoding='utf-8') as file:
+        json.dump(existing_data, file, indent=4, ensure_ascii=False)
+
+    print("Dữ liệu đã được lưu vào data_cache.json.")
+
+    
     return jsonify(json.loads(json_string))
+
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
@@ -479,18 +516,53 @@ def shutdown():
         return jsonify(error='Token không hợp lệ'), 401
 
     print("Shutting down gracefully...")
-    
-    # Perform any cleanup tasks if needed
-    
-    os.kill(os.getpid(), signal.SIGINT)  # Send a signal to gracefully shut down the Flask app
-    
-    return jsonify(message='Shutting down...')
 
-@app.route('/start', methods=['POST'])  
-def start_api():
-    global is_api_active
-    is_api_active = True
-    return 'API has been started'
+    # Perform any cleanup tasks if needed
+
+    # Shut down the server in a separate thread to avoid interference
+    shutdown_thread = threading.Thread(target=shutdown_server)
+    shutdown_thread.start()
+
+    return jsonify(message='Shutting down...'), 200
+
+def shutdown_server():
+    """
+    Function to shut down the Flask application.
+    """
+    with app.test_request_context('/shutdown', method='POST'):
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func is not None:
+            func()
+
+@app.route('/restart', methods=['POST'])
+def restart():
+    """
+    Endpoint to restart the Flask application.
+    """
+    token = request.headers.get('Authorization')
+
+    # Check if the token is valid for security reasons
+    if not is_valid_token(token):
+        return jsonify(error='Token không hợp lệ'), 401
+
+    print("Restarting...")
+
+    # Perform any cleanup tasks if needed
+
+    # Restart the server in a separate thread to avoid interference
+    restart_thread = threading.Thread(target=restart_server)
+    restart_thread.start()
+
+    return jsonify(message='Restarting...'), 200
+
+def restart_server():
+    """
+    Function to restart the Flask application.
+    """
+    # Optional: Perform any cleanup tasks if needed
+
+    # Restart the server by sending a signal
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 # Endpoint bảo mật yêu cầu token hợp lệ
@@ -505,10 +577,7 @@ def unprotected():
     return jsonify(message='Truy cập thành công vào endpoint không yêu cầu xác thực token!')
 
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 
 if __name__ == '__main__':
-    app.run(debug=True,port=1009)
-    # app.run(host="192.168.30.252",port=1009)
+    app.run(port=10009)
+    # app.run(host="192.168.30.252",port=5050)

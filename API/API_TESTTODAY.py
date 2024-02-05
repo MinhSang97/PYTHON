@@ -1,3 +1,5 @@
+import signal
+import threading
 import cx_Oracle
 from flask import Flask, jsonify, request
 import hashlib
@@ -7,6 +9,10 @@ from functools import wraps
 import json
 import re
 import time
+import os
+import os
+import json
+
 
 app = Flask(__name__)
 
@@ -320,6 +326,24 @@ def get_data():
     thoi_gian = request.args.get('thoi_gian')
     token = request.headers.get('Authorization')
 
+    thoi_gian_cache = datetime.datetime.strptime(thoi_gian, '%d-%m-%y').strftime('%Y-%m-%d')
+
+    # Kiểm tra có dữ liệu trong tệp data_cache.json không
+    try:
+        with open('data_cache.json', 'r', encoding='utf-8') as file:
+            cache_data = json.load(file)
+
+        # Tìm dữ liệu trong cache_data có khớp với meter_asset_no và thoi_gian
+        for cache_entry in cache_data:
+            if cache_entry["data"] != "[]" and cache_entry["meter_asset_no"] == meter_asset_no and cache_entry["thoi_gian"] == thoi_gian_cache:
+ 
+                # In ra màn hình thông báo
+                print("Dữ liệu được lấy từ tệp data_cache.json.")
+                return jsonify(json.loads(cache_entry["data"]))
+
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        pass  # Nếu không có hoặc xảy ra lỗi, tiếp tục truy vấn trong DB
+
     # Lấy địa chỉ IP
     ip_address = request.remote_addr
     
@@ -342,6 +366,8 @@ def get_data():
         # Lưu log
         save_log(token, meter_asset_no, thoi_gian, ip_address)
 
+
+
         # Truy vấn loại công tơ
         query_meter_model = "SELECT meter_model FROM a_equip_meter WHERE assetno = :meter_asset_no"
         cursor = conn.cursor()
@@ -352,6 +378,7 @@ def get_data():
             return jsonify(error='No công tơ không hợp lệ.'), 404
 
         meter_model1 = meter_model[0]
+
 
     # Truy vấn dữ liệu dựa trên loại công tơ
     if meter_model1 == "HHM11-V1":
@@ -451,22 +478,92 @@ left join BIZ_PUB_DATA_OTHER_D D on A.DATA_ID=D.DATA_ID AND TRUNC(D.TV)=to_date(
         # Thay thế giá trị trong chuỗi JSON
         json_string = re.sub(r'"TENKHACHHANG":".*?"', f'"TENKHACHHANG":"{decoded_value}"', json_string)
 
+
+
+       # Đọc dữ liệu hiện tại từ tệp nếu có
+    try:
+        with open('data_cache.json', 'r', encoding='utf-8') as file:
+            existing_data = json.load(file)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        existing_data = []
+
+    # Thêm dữ liệu mới vào danh sách hiện tại
+    existing_data.append({
+        "meter_asset_no": meter_asset_no,
+        "thoi_gian": thoi_gian,
+        "data": json_string
+    })
+
+    # Lưu toàn bộ danh sách vào tệp data_cache.json
+    with open('data_cache.json', 'w', encoding='utf-8') as file:
+        json.dump(existing_data, file, indent=4, ensure_ascii=False)
+
+    print("Dữ liệu đã được lưu vào data_cache.json.")
+
+    
     return jsonify(json.loads(json_string))
 
-@app.route('/shutdown', methods=['POST'])
-def shutdown_api():
-    global is_api_active
-    is_api_active = False
-    print("API has been shut down")  # Thêm dòng này để kiểm tra có vào đúng endpoint không
-    return 'API has been shut down'
 
-def check_api_status(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not is_api_active:
-            return jsonify({'error': 'API is currently shut down'}), 503
-        return f(*args, **kwargs)
-    return decorated_function
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """
+    Endpoint to shut down the Flask application.
+    """
+    token = request.headers.get('Authorization')
+
+    # Check if the token is valid for security reasons
+    if not is_valid_token(token):
+        return jsonify(error='Token không hợp lệ'), 401
+
+    print("Shutting down gracefully...")
+
+    # Perform any cleanup tasks if needed
+
+    # Shut down the server in a separate thread to avoid interference
+    shutdown_thread = threading.Thread(target=shutdown_server)
+    shutdown_thread.start()
+
+    return jsonify(message='Shutting down...'), 200
+
+def shutdown_server():
+    """
+    Function to shut down the Flask application.
+    """
+    with app.test_request_context('/shutdown', method='POST'):
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func is not None:
+            func()
+
+@app.route('/restart', methods=['POST'])
+def restart():
+    """
+    Endpoint to restart the Flask application.
+    """
+    token = request.headers.get('Authorization')
+
+    # Check if the token is valid for security reasons
+    if not is_valid_token(token):
+        return jsonify(error='Token không hợp lệ'), 401
+
+    print("Restarting...")
+
+    # Perform any cleanup tasks if needed
+
+    # Restart the server in a separate thread to avoid interference
+    restart_thread = threading.Thread(target=restart_server)
+    restart_thread.start()
+
+    return jsonify(message='Restarting...'), 200
+
+def restart_server():
+    """
+    Function to restart the Flask application.
+    """
+    # Optional: Perform any cleanup tasks if needed
+
+    # Restart the server by sending a signal
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 # Endpoint bảo mật yêu cầu token hợp lệ
@@ -483,5 +580,5 @@ def unprotected():
 
 
 if __name__ == '__main__':
-    # app.run(port=1009)
-    app.run(host="192.168.30.252",port=5050)
+    app.run(port=10009)
+    # app.run(host="192.168.30.252",port=5050)
